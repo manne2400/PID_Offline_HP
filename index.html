@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Offline PID regulator beregner - Beregn P, I og D parametre med multiple tuning metoder">
+    <meta name="theme-color" content="#2563eb">
+    <title>PID Regulator Beregner</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Manifest.json er kun nødvendig for PWA installation, ikke for offline funktionalitet -->
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>PID Regulator Beregner</h1>
+            <p class="subtitle">Beregn P, I og D parametre med multiple tuning metoder</p>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Skift tema">🌙</button>
+        </div>
+    </header>
+
+    <nav class="main-nav">
+        <div class="container">
+            <ul class="nav-tabs">
+                <li><a href="#intro" class="nav-tab active">Introduktion</a></li>
+                <li><a href="#zn-open" class="nav-tab">Z-N Åben-sløjfe</a></li>
+                <li><a href="#zn-closed" class="nav-tab">Z-N Lukket-sløjfe</a></li>
+                <li><a href="#cohen-coon" class="nav-tab">Cohen-Coon</a></li>
+                <li><a href="#simc" class="nav-tab">SIMC</a></li>
+                <li><a href="#tyreus-luyben" class="nav-tab">Tyreus-Luyben</a></li>
+                <li><a href="#chr" class="nav-tab">Chien-Hrones-Reswick</a></li>
+                <li><a href="#interactive" class="nav-tab">Interaktiv Tuning</a></li>
+                <li><a href="#examples" class="nav-tab">Eksempler</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <!-- Introduktion -->
+        <section id="intro" class="content-section active">
+            <h2>Introduktion til PID-regulering</h2>
+            
+            <div class="info-card">
+                <h3>Hvad er en PID-regulator?</h3>
+                <p>En PID-regulator (Proportional-Integral-Derivative) er en kontrolmekanisme, der anvendes til at opretholde en ønsket procesværdi ved at justere en kontrolvariabel baseret på fejlen mellem setpunktet og den faktiske procesværdi.</p>
+            </div>
+
+            <div class="components-grid">
+                <div class="component-card">
+                    <h4>P - Proportional</h4>
+                    <p>Reagerer direkte på fejlens størrelse. Jo større fejlen er, jo større er korrektionen.</p>
+                    <div class="formula">u(t) = K<sub>p</sub> × e(t)</div>
+                    <p class="component-desc"><strong>Fordele:</strong> Hurtig respons<br><strong>Ulemper:</strong> Kan give offset (vedvarende fejl)</p>
+                </div>
+                
+                <div class="component-card">
+                    <h4>I - Integral</h4>
+                    <p>Akkumulerer fejl over tid for at eliminere vedvarende afvigelser (offset).</p>
+                    <div class="formula">u(t) = K<sub>i</sub> × ∫e(t)dt</div>
+                    <p class="component-desc"><strong>Fordele:</strong> Eliminerer steady-state fejl<br><strong>Ulemper:</strong> Kan give overshoot og langsommere respons</p>
+                </div>
+                
+                <div class="component-card">
+                    <h4>D - Derivativ</h4>
+                    <p>Forudsiger fremtidige fejl baseret på ændringshastigheden og dæmper systemet.</p>
+                    <div class="formula">u(t) = K<sub>d</sub> × de(t)/dt</div>
+                    <p class="component-desc"><strong>Fordele:</strong> Reducerer overshoot, forbedrer stabilitet<br><strong>Ulemper:</strong> Følsom overfor støj</p>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>Kombineret PID-regulator</h3>
+                <div class="formula large">u(t) = K<sub>p</sub>e(t) + K<sub>i</sub>∫e(t)dt + K<sub>d</sub>de(t)/dt</div>
+                <p>Hvor:</p>
+                <ul>
+                    <li><strong>u(t):</strong> Kontrolsignal (regulator output)</li>
+                    <li><strong>e(t):</strong> Fejl = Setpunkt - Procesværdi</li>
+                    <li><strong>K<sub>p</sub>:</strong> Proportional forstærkning</li>
+                    <li><strong>K<sub>i</sub>:</strong> Integral forstærkning</li>
+                    <li><strong>K<sub>d</sub>:</strong> Derivativ forstærkning</li>
+                </ul>
+            </div>
+
+            <div class="info-card">
+                <h3>Alternative notationer</h3>
+                <p>PID-parametre kan også angives som:</p>
+                <ul>
+                    <li><strong>K<sub>p</sub>, T<sub>i</sub>, T<sub>d</sub>:</strong> Hvor K<sub>i</sub> = K<sub>p</sub>/T<sub>i</sub> og K<sub>d</sub> = K<sub>p</sub>×T<sub>d</sub></li>
+                    <li><strong>K<sub>p</sub>, K<sub>i</sub>, K<sub>d</sub>:</strong> Direkte forstærkningsfaktorer</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Ziegler-Nichols Åben-sløjfe -->
+        <section id="zn-open" class="content-section">
+            <h2>Ziegler-Nichols Åben-sløjfe Metode (Reaktionskurve)</h2>
+            
+            <div class="method-info">
+                <h3>Metodebeskrivelse</h3>
+                <p>Denne metode analyserer systemets respons på et trin-input (step response) for at bestemme proceskarakteristika. Systemet modelleres som en førsteordens proces med dødtid (FOPDT):</p>
+                <div class="formula">G(s) = (K × e<sup>-Ls</sup>) / (τs + 1)</div>
+                <p><strong>Procedure:</strong></p>
+                <ol>
+                    <li>Påfør et trin-input til systemet i åben-sløjfe</li>
+                    <li>Mål systemets respons (S-kurve)</li>
+                    <li>Bestem K (procesforstærkning), τ (tidskonstant) og L (dødtid)</li>
+                    <li>Beregn PID-parametre baseret på tabellen nedenfor</li>
+                </ol>
+            </div>
+
+            <div class="calculator-card">
+                <h3>Beregner</h3>
+                <form id="zn-open-form" class="calc-form">
+                    <div class="input-group">
+                        <label for="zn-open-K">
+                            K (Procesforstærkning)
+                            <span class="info-icon" data-param="K" data-method="zn-open">ℹ️</span>
+                        </label>
+                        <input type="number" id="zn-open-K" step="0.001" min="0.001" required>
+                        <span class="unit">[-]</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="zn-open-tau">
+                            τ (Tidskonstant)
+                            <span class="info-icon" data-param="tau" data-method="zn-open">ℹ️</span>
+                        </label>
+                        <input type="number" id="zn-open-tau" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="zn-open-L">
+                            L (Dødtid)
+                            <span class="info-icon" data-param="L" data-method="zn-open">ℹ️</span>
+                        </label>
+                        <input type="number" id="zn-open-L" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="zn-open-type">Regulatortype</label>
+                        <select id="zn-open-type">
+                            <option value="P">P (Proportional)</option>
+                            <option value="PI">PI (Proportional-Integral)</option>
+                            <option value="PID" selected>PID (Proportional-Integral-Derivative)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-calculate">Beregn PID-parametre</button>
+                </form>
+
+                <div id="zn-open-results" class="results hidden">
+                    <h4>Resultater</h4>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <label>K<sub>p</sub> (Proportional gain)</label>
+                            <div class="result-value" id="zn-open-Kp">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>i</sub> (Integral tid)</label>
+                            <div class="result-value" id="zn-open-Ti">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>d</sub> (Derivativ tid)</label>
+                            <div class="result-value" id="zn-open-Td">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>i</sub> (Integral gain)</label>
+                            <div class="result-value" id="zn-open-Ki">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>d</sub> (Derivativ gain)</label>
+                            <div class="result-value" id="zn-open-Kd">-</div>
+                        </div>
+                    </div>
+                    <div class="formula-display" id="zn-open-formula"></div>
+                </div>
+            </div>
+
+            <div class="method-table">
+                <h3>Ziegler-Nichols Åben-sløjfe Tuning Tabel</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Regulatortype</th>
+                            <th>K<sub>p</sub></th>
+                            <th>T<sub>i</sub></th>
+                            <th>T<sub>d</sub></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>P</td>
+                            <td>τ/(K×L)</td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td>PI</td>
+                            <td>0.9×τ/(K×L)</td>
+                            <td>3.33×L</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td>PID</td>
+                            <td>1.2×τ/(K×L)</td>
+                            <td>2×L</td>
+                            <td>0.5×L</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Ziegler-Nichols Lukket-sløjfe -->
+        <section id="zn-closed" class="content-section">
+            <h2>Ziegler-Nichols Lukket-sløjfe Metode (Relæmetode)</h2>
+            
+            <div class="method-info">
+                <h3>Metodebeskrivelse</h3>
+                <p>Denne metode finder den kritiske forstærkning (K<sub>u</sub>) og den kritiske periode (T<sub>u</sub>) ved at påføre en relæfunktion (on-off kontrol) i lukket-sløjfe, indtil systemet oscillerer med konstant amplitude.</p>
+                <p><strong>Procedure:</strong></p>
+                <ol>
+                    <li>Indstil I- og D-komponenter til nul (kun P-regulator)</li>
+                    <li>Øg proportional forstærkning gradvist</li>
+                    <li>Find K<sub>u</sub> (kritisk forstærkning) hvor systemet oscillerer stabilt</li>
+                    <li>Mål T<sub>u</sub> (kritisk periode) - perioden for oscillationen</li>
+                    <li>Beregn PID-parametre baseret på tabellen nedenfor</li>
+                </ol>
+            </div>
+
+            <div class="calculator-card">
+                <h3>Beregner</h3>
+                <form id="zn-closed-form" class="calc-form">
+                    <div class="input-group">
+                        <label for="zn-closed-Ku">
+                            K<sub>u</sub> (Kritisk forstærkning)
+                            <span class="info-icon" data-param="Ku" data-method="zn-closed">ℹ️</span>
+                        </label>
+                        <input type="number" id="zn-closed-Ku" step="0.01" min="0.01" required>
+                        <span class="unit">[-]</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="zn-closed-Tu">
+                            T<sub>u</sub> (Kritisk periode)
+                            <span class="info-icon" data-param="Tu" data-method="zn-closed">ℹ️</span>
+                        </label>
+                        <input type="number" id="zn-closed-Tu" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="zn-closed-type">Regulatortype</label>
+                        <select id="zn-closed-type">
+                            <option value="P">P (Proportional)</option>
+                            <option value="PI">PI (Proportional-Integral)</option>
+                            <option value="PID" selected>PID (Proportional-Integral-Derivative)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-calculate">Beregn PID-parametre</button>
+                </form>
+
+                <div id="zn-closed-results" class="results hidden">
+                    <h4>Resultater</h4>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <label>K<sub>p</sub> (Proportional gain)</label>
+                            <div class="result-value" id="zn-closed-Kp">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>i</sub> (Integral tid)</label>
+                            <div class="result-value" id="zn-closed-Ti">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>d</sub> (Derivativ tid)</label>
+                            <div class="result-value" id="zn-closed-Td">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>i</sub> (Integral gain)</label>
+                            <div class="result-value" id="zn-closed-Ki">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>d</sub> (Derivativ gain)</label>
+                            <div class="result-value" id="zn-closed-Kd">-</div>
+                        </div>
+                    </div>
+                    <div class="formula-display" id="zn-closed-formula"></div>
+                </div>
+            </div>
+
+            <div class="method-table">
+                <h3>Ziegler-Nichols Lukket-sløjfe Tuning Tabel</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Regulatortype</th>
+                            <th>K<sub>p</sub></th>
+                            <th>T<sub>i</sub></th>
+                            <th>T<sub>d</sub></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>P</td>
+                            <td>0.5×K<sub>u</sub></td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td>PI</td>
+                            <td>0.45×K<sub>u</sub></td>
+                            <td>0.83×T<sub>u</sub></td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td>PID</td>
+                            <td>0.6×K<sub>u</sub></td>
+                            <td>0.5×T<sub>u</sub></td>
+                            <td>0.125×T<sub>u</sub></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Cohen-Coon -->
+        <section id="cohen-coon" class="content-section">
+            <h2>Cohen-Coon Metode</h2>
+            
+            <div class="method-info">
+                <h3>Metodebeskrivelse</h3>
+                <p>Cohen-Coon metoden er en forbedring af Ziegler-Nichols åben-sløjfe metoden, der giver bedre respons for systemer med høj dødtid-tidskonstant ratio (L/τ). Metoden optimerer for 25% overshoot og minimum settling time.</p>
+                <p><strong>Anvendelse:</strong> Bedst for processer med L/τ > 0.1</p>
+            </div>
+
+            <div class="calculator-card">
+                <h3>Beregner</h3>
+                <form id="cohen-coon-form" class="calc-form">
+                    <div class="input-group">
+                        <label for="cc-K">
+                            K (Procesforstærkning)
+                            <span class="info-icon" data-param="K" data-method="cohen-coon">ℹ️</span>
+                        </label>
+                        <input type="number" id="cc-K" step="0.001" min="0.001" required>
+                        <span class="unit">[-]</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="cc-tau">
+                            τ (Tidskonstant)
+                            <span class="info-icon" data-param="tau" data-method="cohen-coon">ℹ️</span>
+                        </label>
+                        <input type="number" id="cc-tau" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="cc-L">
+                            L (Dødtid)
+                            <span class="info-icon" data-param="L" data-method="cohen-coon">ℹ️</span>
+                        </label>
+                        <input type="number" id="cc-L" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="cc-type">Regulatortype</label>
+                        <select id="cc-type">
+                            <option value="P">P (Proportional)</option>
+                            <option value="PI">PI (Proportional-Integral)</option>
+                            <option value="PID" selected>PID (Proportional-Integral-Derivative)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-calculate">Beregn PID-parametre</button>
+                </form>
+
+                <div id="cohen-coon-results" class="results hidden">
+                    <h4>Resultater</h4>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <label>K<sub>p</sub> (Proportional gain)</label>
+                            <div class="result-value" id="cc-Kp">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>i</sub> (Integral tid)</label>
+                            <div class="result-value" id="cc-Ti">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>d</sub> (Derivativ tid)</label>
+                            <div class="result-value" id="cc-Td">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>i</sub> (Integral gain)</label>
+                            <div class="result-value" id="cc-Ki">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>d</sub> (Derivativ gain)</label>
+                            <div class="result-value" id="cc-Kd">-</div>
+                        </div>
+                    </div>
+                    <div class="formula-display" id="cc-formula"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SIMC -->
+        <section id="simc" class="content-section">
+            <h2>Skogestads SIMC Metode (Simple Internal Model Control)</h2>
+            
+            <div class="method-info">
+                <h3>Metodebeskrivelse</h3>
+                <p>SIMC (Simple Internal Model Control) er en robust tuning-metode udviklet af Sigurd Skogestad. Metoden er baseret på intern modelkontrol og giver en god balance mellem respons og robusthed.</p>
+                <p><strong>Fordele:</strong></p>
+                <ul>
+                    <li>Robust overfor modelfejl</li>
+                    <li>Enkel at anvende</li>
+                    <li>God ydeevne for mange processer</li>
+                </ul>
+            </div>
+
+            <div class="calculator-card">
+                <h3>Beregner</h3>
+                <form id="simc-form" class="calc-form">
+                    <div class="input-group">
+                        <label for="simc-K">
+                            K (Procesforstærkning)
+                            <span class="info-icon" data-param="K" data-method="simc">ℹ️</span>
+                        </label>
+                        <input type="number" id="simc-K" step="0.001" min="0.001" required>
+                        <span class="unit">[-]</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="simc-tau">
+                            τ (Tidskonstant)
+                            <span class="info-icon" data-param="tau" data-method="simc">ℹ️</span>
+                        </label>
+                        <input type="number" id="simc-tau" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="simc-L">
+                            L (Dødtid)
+                            <span class="info-icon" data-param="L" data-method="simc">ℹ️</span>
+                        </label>
+                        <input type="number" id="simc-L" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="simc-tauc">
+                            τ<sub>c</sub> (Closed-loop time constant)
+                            <span class="info-icon" data-param="tauc" data-method="simc">ℹ️</span>
+                        </label>
+                        <input type="number" id="simc-tauc" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="simc-type">Regulatortype</label>
+                        <select id="simc-type">
+                            <option value="PI">PI (Proportional-Integral)</option>
+                            <option value="PID" selected>PID (Proportional-Integral-Derivative)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-calculate">Beregn PID-parametre</button>
+                </form>
+
+                <div id="simc-results" class="results hidden">
+                    <h4>Resultater</h4>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <label>K<sub>p</sub> (Proportional gain)</label>
+                            <div class="result-value" id="simc-Kp">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>i</sub> (Integral tid)</label>
+                            <div class="result-value" id="simc-Ti">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>d</sub> (Derivativ tid)</label>
+                            <div class="result-value" id="simc-Td">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>i</sub> (Integral gain)</label>
+                            <div class="result-value" id="simc-Ki">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>d</sub> (Derivativ gain)</label>
+                            <div class="result-value" id="simc-Kd">-</div>
+                        </div>
+                    </div>
+                    <div class="formula-display" id="simc-formula"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tyreus-Luyben -->
+        <section id="tyreus-luyben" class="content-section">
+            <h2>Tyreus-Luyben Metode</h2>
+            
+            <div class="method-info">
+                <h3>Metodebeskrivelse</h3>
+                <p>Tyreus-Luyben metoden er en modificeret version af Ziegler-Nichols lukket-sløjfe metoden, der giver mere konservative (robuste) indstillinger med mindre overshoot. Metoden er bedre egnet til industriel anvendelse.</p>
+                <p><strong>Anvendelse:</strong> Når robusthed og stabilitet er vigtigere end hurtig respons</p>
+            </div>
+
+            <div class="calculator-card">
+                <h3>Beregner</h3>
+                <form id="tyreus-luyben-form" class="calc-form">
+                    <div class="input-group">
+                        <label for="tl-Ku">
+                            K<sub>u</sub> (Kritisk forstærkning)
+                            <span class="info-icon" data-param="Ku" data-method="tyreus-luyben">ℹ️</span>
+                        </label>
+                        <input type="number" id="tl-Ku" step="0.01" min="0.01" required>
+                        <span class="unit">[-]</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="tl-Tu">
+                            T<sub>u</sub> (Kritisk periode)
+                            <span class="info-icon" data-param="Tu" data-method="tyreus-luyben">ℹ️</span>
+                        </label>
+                        <input type="number" id="tl-Tu" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="tl-type">Regulatortype</label>
+                        <select id="tl-type">
+                            <option value="PI">PI (Proportional-Integral)</option>
+                            <option value="PID" selected>PID (Proportional-Integral-Derivative)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-calculate">Beregn PID-parametre</button>
+                </form>
+
+                <div id="tyreus-luyben-results" class="results hidden">
+                    <h4>Resultater</h4>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <label>K<sub>p</sub> (Proportional gain)</label>
+                            <div class="result-value" id="tl-Kp">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>i</sub> (Integral tid)</label>
+                            <div class="result-value" id="tl-Ti">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>d</sub> (Derivativ tid)</label>
+                            <div class="result-value" id="tl-Td">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>i</sub> (Integral gain)</label>
+                            <div class="result-value" id="tl-Ki">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>d</sub> (Derivativ gain)</label>
+                            <div class="result-value" id="tl-Kd">-</div>
+                        </div>
+                    </div>
+                    <div class="formula-display" id="tl-formula"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Chien-Hrones-Reswick -->
+        <section id="chr" class="content-section">
+            <h2>Chien-Hrones-Reswick Metode</h2>
+            
+            <div class="method-info">
+                <h3>Metodebeskrivelse</h3>
+                <p>Chien-Hrones-Reswick metoden tilbyder separate tuning-regler afhængigt af om målet er setpoint tracking (følge setpoint) eller load rejection (afvise forstyrrelser). Metoden giver bedre ydeevne end Ziegler-Nichols for mange applikationer.</p>
+            </div>
+
+            <div class="calculator-card">
+                <h3>Beregner</h3>
+                <form id="chr-form" class="calc-form">
+                    <div class="input-group">
+                        <label for="chr-K">
+                            K (Procesforstærkning)
+                            <span class="info-icon" data-param="K" data-method="chr">ℹ️</span>
+                        </label>
+                        <input type="number" id="chr-K" step="0.001" min="0.001" required>
+                        <span class="unit">[-]</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="chr-tau">
+                            τ (Tidskonstant)
+                            <span class="info-icon" data-param="tau" data-method="chr">ℹ️</span>
+                        </label>
+                        <input type="number" id="chr-tau" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="chr-L">
+                            L (Dødtid)
+                            <span class="info-icon" data-param="L" data-method="chr">ℹ️</span>
+                        </label>
+                        <input type="number" id="chr-L" step="0.01" min="0.01" required>
+                        <span class="unit">[s]</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="chr-type">Regulatortype</label>
+                        <select id="chr-type">
+                            <option value="PI">PI (Proportional-Integral)</option>
+                            <option value="PID" selected>PID (Proportional-Integral-Derivative)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="chr-response">Respons type</label>
+                        <select id="chr-response">
+                            <option value="setpoint">Setpoint Tracking (0% overshoot)</option>
+                            <option value="setpoint-20">Setpoint Tracking (20% overshoot)</option>
+                            <option value="load">Load Rejection (0% overshoot)</option>
+                            <option value="load-20">Load Rejection (20% overshoot)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-calculate">Beregn PID-parametre</button>
+                </form>
+
+                <div id="chr-results" class="results hidden">
+                    <h4>Resultater</h4>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <label>K<sub>p</sub> (Proportional gain)</label>
+                            <div class="result-value" id="chr-Kp">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>i</sub> (Integral tid)</label>
+                            <div class="result-value" id="chr-Ti">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>T<sub>d</sub> (Derivativ tid)</label>
+                            <div class="result-value" id="chr-Td">-</div>
+                            <span class="unit">[s]</span>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>i</sub> (Integral gain)</label>
+                            <div class="result-value" id="chr-Ki">-</div>
+                        </div>
+                        <div class="result-item">
+                            <label>K<sub>d</sub> (Derivativ gain)</label>
+                            <div class="result-value" id="chr-Kd">-</div>
+                        </div>
+                    </div>
+                    <div class="formula-display" id="chr-formula"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interaktiv Tuning -->
+        <section id="interactive" class="content-section">
+            <h2>Interaktiv Tuning og Visualisering</h2>
+            
+            <div class="method-info">
+                <h3>Realtids Justering</h3>
+                <p>Brug sliders nedenfor til at justere PID-parametre og se systemets respons i realtid. Dette hjælper med at forstå effekten af hver parameter.</p>
+            </div>
+
+            <div class="interactive-tuning">
+                <div class="tuning-controls">
+                    <h3>PID Parametre</h3>
+                    <div class="slider-group">
+                        <label for="interactive-Kp">
+                            K<sub>p</sub> (Proportional)
+                            <span class="value-display" id="interactive-Kp-value">1.0</span>
+                        </label>
+                        <input type="range" id="interactive-Kp" min="0" max="10" step="0.1" value="1.0">
+                    </div>
+                    <div class="slider-group">
+                        <label for="interactive-Ki">
+                            K<sub>i</sub> (Integral)
+                            <span class="value-display" id="interactive-Ki-value">0.5</span>
+                        </label>
+                        <input type="range" id="interactive-Ki" min="0" max="5" step="0.1" value="0.5">
+                    </div>
+                    <div class="slider-group">
+                        <label for="interactive-Kd">
+                            K<sub>d</sub> (Derivativ)
+                            <span class="value-display" id="interactive-Kd-value">0.1</span>
+                        </label>
+                        <input type="range" id="interactive-Kd" min="0" max="2" step="0.1" value="0.1">
+                    </div>
+                    <div class="slider-group">
+                        <label for="interactive-setpoint">
+                            Setpoint
+                            <span class="value-display" id="interactive-setpoint-value">1.0</span>
+                        </label>
+                        <input type="range" id="interactive-setpoint" min="0" max="2" step="0.1" value="1.0">
+                    </div>
+                </div>
+
+                <div class="visualization-container">
+                    <canvas id="response-chart" width="800" height="400"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Eksempler -->
+        <section id="examples" class="content-section">
+            <h2>Eksempler og Forudindstillede Scenarier</h2>
+            
+            <div class="examples-grid">
+                <div class="example-card" data-example="temperature">
+                    <h3>🌡️ Temperaturkontrol</h3>
+                    <p>Typisk værdier for en ovn/opvarmningssystem</p>
+                    <button class="btn-load-example">Indlæs eksempel</button>
+                </div>
+                
+                <div class="example-card" data-example="level">
+                    <h3>💧 Niveauregulering</h3>
+                    <p>Typisk værdier for tankniveaukontrol</p>
+                    <button class="btn-load-example">Indlæs eksempel</button>
+                </div>
+                
+                <div class="example-card" data-example="flow">
+                    <h3>🌊 Flowregulering</h3>
+                    <p>Typisk værdier for flowkontrol i rør</p>
+                    <button class="btn-load-example">Indlæs eksempel</button>
+                </div>
+                
+                <div class="example-card" data-example="pressure">
+                    <h3>📊 Trykregulering</h3>
+                    <p>Typisk værdier for trykkontrol</p>
+                    <button class="btn-load-example">Indlæs eksempel</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>PID Regulator Beregner - Offline værktøj til beregning af PID-parametre</p>
+            <div class="footer-actions">
+                <button id="export-btn" class="btn-secondary">Eksporter resultater</button>
+                <button id="clear-btn" class="btn-secondary">Ryd data</button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Info Modal -->
+    <div id="info-modal" class="info-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Parameter Information</h3>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Indhold indsættes dynamisk -->
+            </div>
+        </div>
+    </div>
+
+    <script src="pid-calculator.js"></script>
+    <script src="visualization.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+
