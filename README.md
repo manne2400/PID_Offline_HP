@@ -46,14 +46,16 @@ En komplet offline hjemmeside til beregning af PID-regulator parametre (P, I og 
 - **Dark/Light Mode**: Tema-skift med lokal gemning
 - **Responsivt Design**: Fungerer på desktop, tablet og mobil
 - **Offline Support**: Fungerer helt uden internetforbindelse
+- **Detaljerede Forklaringer**: Klikbare info-ikoner med step-by-step guides til at finde parametre
 
 ## Brug
 
 1. Åbn `index.html` i din webbrowser
 2. Vælg en tuning-metode fra navigationen
-3. Indtast de nødvendige parametre
-4. Klik på "Beregn PID-parametre"
-5. Se resultaterne og brug dem til at indstille din regulator
+3. Klik på info-ikonet (ℹ️) ved hvert input for at se hvordan man finder værdien
+4. Indtast de nødvendige parametre
+5. Klik på "Beregn PID-parametre"
+6. Se resultaterne og brug dem til at indstille din regulator
 
 ## Teknisk
 
@@ -95,7 +97,7 @@ Hjemmesiden er designet til at fungere helt offline:
 
 ## Licens
 
-Frit at bruge til personlig og kommerciel brug.
+MIT License - Se LICENSE filen for detaljer.
 
 ## Noter
 
@@ -103,4 +105,3 @@ Frit at bruge til personlig og kommerciel brug.
 - Resultaterne skal altid valideres i det faktiske system
 - Forskellige processer kan kræve finjustering af parametrene
 - Visualiseringerne er forenklede modeller til illustration
-
